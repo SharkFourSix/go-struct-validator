@@ -24,7 +24,7 @@ package main
 import "github.com/SharkFourSix/go-strutct-validator"
 
 type Person {
-    Id int `validator:"" trigger:"update,delete"` // evaluate only when 'update' or 'delete' triggers have been specified
+    Id int `validator:"min(1000)" trigger:"update,delete"` // evaluate only when 'update' or 'delete' triggers have been specified
     Age int `validator:"min(18)|max(65)"` // n >= 18 and n <= 65
     Name string `validator:"max(20)" filter:"upper"` // len(s) <= 20
 }
@@ -70,7 +70,7 @@ func main(){
 This librabry provides validation functionality for structs only. It does not support
 data binding.
 
-Each validation rule correspods to a function, which takes its accepts a `validate.ValidationContext`, containing the value to validate as well as any arguments that the function may require.
+Each validation rule correspods to a function, which accepts a `validator.ValidationContext`, containing the value to validate as well as any arguments that the function may require.
 
 #### Validating required vs optional values
 
@@ -82,22 +82,22 @@ The contract for validating literal values is to inspect the values and perform 
 
 Both validation and filter functions accept the same input parameter `validator.ValidationContext`.
 
-Validation functions return true or false (`bool`) to indicate whether the validation test passed or failed. If the validation message wishes to provide an error message, it may do so through `validator.ValidationOptions.ErrorMessage`.
+Validation functions return true or false (`bool`) to indicate whether the validation test passed or failed. If the validation function wishes to provide an error message, it may do so through `validator.ValidationContext.ErrorMessage`.
 
-The foal of filter functions is to allow transforming data into desired and suitable forms.
+The goal of filter functions is to allow transforming data into desired and suitable formats.
 
-**NOTE**: Because this is not a data binding library, filters may not change the data type since the type of the input value cannot be changed.
+> **NOTE**: Because this is not a data binding library, filters may not change the data type since the type of the input value cannot be changed.
 
-Filters return `reflect.Value`, which may be a newly allocated value or simply the same value found stored in `validator.ValidationOptions.value`.
+Filters return `reflect.Value`, which may be a newly allocated value or simply the same value found stored in `validator.ValidationContext.value`.
 
-To access the input value within a filter or validator, call `ctx.GetValue()`, which will return the underlying value (`reflect.Value`), resolving pointers (1 level deep) if necessary.
+To access the input value within a filter or validator, call `ValidationContext.GetValue()`, which will return the underlying value (`reflect.Value`), resolving pointers (1 level deep) if necessary.
 
-To check the type the input value value, you can use `ctx.IsValueOfKind(...reflect.Kind)` or `ctx.IsValueOfType(inteface{})`.
+To check the type of the input value, you can use `ValidationContext.IsValueOfKind(...reflect.Kind)` or `ValidationContext.IsValueOfType(inteface{})`.
 
 Sample validator
 
 ```go
-func MyValidator(ctx* validator.ValidationContext) bool {
+func MyValidator(ctx *validator.ValidationContext) bool {
     // First always check if the value is (a pointer and) null.
     if ctx.IsNull {
         // treat this as an optional field. if the caller decides otherwise, the first validtor in the list will be "requried"
@@ -131,7 +131,7 @@ func MyValidator(ctx* validator.ValidationContext) bool {
 Sample filter
 
 ```go
-func InPlaceMutationFilter(ctx* validator.ValidationContext) reflect.Value {
+func InPlaceMutationFilter(ctx *validator.ValidationContext) reflect.Value {
 
     // Check supported type (will panic)
     ctx.MustBeOfKind(reflect.Int)
@@ -154,7 +154,7 @@ func InPlaceMutationFilter(ctx* validator.ValidationContext) reflect.Value {
 ```
 
 ```go
-func NewValueFilter(ctx* validator.ValidationContext) reflect.Value {
+func NewValueFilter(ctx *validator.ValidationContext) reflect.Value {
 
     // Check supported type (will panic)
     ctx.MustBeOfKind(reflect.Int)
@@ -182,13 +182,13 @@ func NewValueFilter(ctx* validator.ValidationContext) reflect.Value {
 
 **Selective Validation**
 
-Sometimes you may wish to use the same struct but only work with specific fields. Instead of creating a struct for each case, you can use activation triggers to selectively evaluate those specific fields.
+Sometimes you may wish to use the same struct but only work with specific fields in specific cases. Instead of creating a struct for each use case, you can use activation triggers to selectively evaluate those specific fields.
 
 To specify an activation trigger, include the name of the trigger in the `trigger` tag.
 
 > **NOTE** Trigger names can be anything.
 >
-> A special activation trigger **'all'** exists which causes a field to be evaluated in all cases. Omitting the `trigger` tag is equivalent to explicitly specifying ONLY this special value.
+> A special activation trigger **'all'** exists which causes a field to be evaluated in all use cases. Omitting the `trigger` tag is equivalent to explicitly specifying ONLY this special value.
 
 ```go
 type ResourceRequest struct {
@@ -199,7 +199,7 @@ type ResourceRequest struct {
 myResource := ResourceRequest{}
 
 // get from some http request
-httpDataBinder.BindData(&myResource)
+httpRequestDataBinder.BindData(&myResource)
 
 // making the following call validates .ResourceName
 validator.Validate(&myResource, "create")
@@ -215,11 +215,9 @@ Validators are evaluated first and filters last.
 
 #### Accessing validation errors
 
-`validator.ValidationResults.IsValid()` indicates whether the validation succeeded or not. If the validation did not exceed, you are guaranteed to have at least one validation error in `validator.ValidationResults.FieldErrors` .
+`validator.ValidationResults.IsValid()` indicates whether validation succeeded or not. If validation did not exceed, you are guaranteed to have at least one validation error in `validator.ValidationResults.FieldErrors`.
 
 Each field error contains the label take from the field name or `label` tag, and error message returned by the failing validation function, or taken from the `message` tag or default generic error message if none of the former options were specified.
-
-In the following sample, the
 
 ```go
 func main(){
