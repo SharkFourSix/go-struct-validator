@@ -1,5 +1,11 @@
 # go-struct-validator
 
+![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/SharkFourSix/go-struct-validator?color=blue&label=latest)
+[![golangci-lint](https://github.com/SharkFourSix/go-struct-validator/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/SharkFourSix/go-struct-validator/actions/workflows/golangci-lint.yml)
+[![Coverage Status](https://coveralls.io/repos/github/SharkFourSix/go-struct-validator/badge.svg?branch=main)](https://coveralls.io/github/SharkFourSix/go-struct-validator?branch=main)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SharkFourSix/go-struct-validator)](https://goreportcard.com/report/github.com/SharkFourSix/go-struct-validator)
+[![GoDoc](https://godoc.org/github.com/SharkFourSix/go-struct-validator?status.svg)](https://godoc.org/github.com/SharkFourSix/go-struct-validator)
+
 Golang Struct validator.
 
 ### Features

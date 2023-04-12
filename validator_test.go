@@ -1,23 +1,38 @@
-package validator_test
+package validator
 
 import (
-	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-
-	validator "github.com/SharkFourSix/go-struct-validator"
+	//validator "github.com/SharkFourSix/go-struct-validator"
 )
 
 func init() {
-	validator.SetupOptions(func(opts *validator.ValidationOptions) {
+
+	SetupOptions(func(opts *ValidationOptions) {
 		opts.ExposeEnumValues = true
 		opts.ExposeValidatorNames = true
 		opts.NoPanicOnFunctionConflict = true
 	})
+}
+
+func assertFalse(t *testing.T, value bool, msg ...string) {
+	if value {
+		t.Fatal(msg)
+	}
+}
+
+func assertTrue(t *testing.T, value bool, msg ...string) {
+	if !value {
+		t.Fatal(msg)
+	}
+}
+
+func assertEqual(t *testing.T, expected, actual interface{}, msg ...string) {
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatal(msg)
+	}
 }
 
 func TestValidator(t *testing.T) {
@@ -29,14 +44,14 @@ func TestValidator(t *testing.T) {
 
 	myStruct := MyStruct{Age: 21, Name: "  John Doe  "}
 
-	res := validator.Validate(&myStruct)
-	fmt.Println(res)
+	res := Validate(&myStruct)
 
-	assert.Equal(t, myStruct.Name, "John Doe")
-	assert.True(t, res.IsValid(), "Validation failed")
+	assertEqual(t, myStruct.Name, "John Doe")
+	assertTrue(t, res.IsValid(), "Validation failed")
 }
 
 func TestCustomFunctions(t *testing.T) {
+
 	type MyStruct struct {
 		Name string `filter:"trim|upper"`
 		Age  int    `validator:"range(10,50)" filter:"square|square"`
@@ -45,7 +60,7 @@ func TestCustomFunctions(t *testing.T) {
 	myStruct := MyStruct{Age: 20, Name: "  John Doe  "}
 
 	// install custom validator function
-	validator.AddValidator("range", func(ctx *validator.ValidationContext) bool {
+	AddValidator("range", func(ctx *ValidationContext) bool {
 		if ctx.ArgCount() != 2 {
 			// instead of panicking, we can simply return an api-level error message
 			ctx.ErrorMessage = "range function requires exactly two parameters"
@@ -66,7 +81,7 @@ func TestCustomFunctions(t *testing.T) {
 	})
 
 	// this filter converts the given string to upper case
-	validator.AddFilter("upper", func(ctx *validator.ValidationContext) reflect.Value {
+	AddFilter("upper", func(ctx *ValidationContext) reflect.Value {
 		ctx.ValueMustBeOfKind(reflect.String)
 
 		// the filter is aware of pointers
@@ -80,7 +95,7 @@ func TestCustomFunctions(t *testing.T) {
 	})
 
 	// this filter squares the given int value
-	validator.AddFilter("square", func(ctx *validator.ValidationContext) reflect.Value {
+	AddFilter("square", func(ctx *ValidationContext) reflect.Value {
 		ctx.ValueMustBeOfKind(reflect.Int)
 
 		// the filter is aware of pointers
@@ -94,15 +109,15 @@ func TestCustomFunctions(t *testing.T) {
 		return ctx.GetValue()
 	})
 
-	res := validator.Validate(&myStruct)
-	fmt.Println(res)
+	res := Validate(&myStruct)
 
-	assert.Equal(t, myStruct.Name, "JOHN DOE")
-	assert.Equal(t, myStruct.Age, 160000)
-	assert.True(t, res.IsValid(), "Validation failed")
+	assertEqual(t, myStruct.Name, "JOHN DOE")
+	assertEqual(t, myStruct.Age, 160000)
+	assertTrue(t, res.IsValid(), "Validation failed")
 }
 
 func TestPointer(t *testing.T) {
+
 	age := int(42)
 	name := " Bames Jond "
 
@@ -113,7 +128,7 @@ func TestPointer(t *testing.T) {
 
 	myStruct := MyStruct{Age: &age, Name: &name}
 
-	validator.AddFilter("upper", func(ctx *validator.ValidationContext) reflect.Value {
+	AddFilter("upper", func(ctx *ValidationContext) reflect.Value {
 		ctx.ValueMustBeOfKind(reflect.String)
 
 		// the filter is aware of pointers
@@ -126,7 +141,7 @@ func TestPointer(t *testing.T) {
 		return ctx.GetValue()
 	})
 
-	validator.AddFilter("square", func(ctx *validator.ValidationContext) reflect.Value {
+	AddFilter("square", func(ctx *ValidationContext) reflect.Value {
 		ctx.ValueMustBeOfKind(reflect.Int)
 
 		// the filter is aware of pointers
@@ -140,15 +155,15 @@ func TestPointer(t *testing.T) {
 		return ctx.GetValue()
 	})
 
-	res := validator.Validate(&myStruct)
-	fmt.Println(res)
+	res := Validate(&myStruct)
 
-	assert.Equal(t, *myStruct.Name, "BAMES JOND")
-	assert.Equal(t, *myStruct.Age, 1764)
-	assert.False(t, res.IsValid(), "Validation failed")
+	assertEqual(t, *myStruct.Name, "BAMES JOND")
+	assertEqual(t, *myStruct.Age, 1764)
+	assertFalse(t, res.IsValid(), "Validation failed")
 }
 
 func TestEnum(t *testing.T) {
+
 	type MyEnum int
 	const (
 		Opt1 MyEnum = iota
@@ -156,17 +171,17 @@ func TestEnum(t *testing.T) {
 	)
 
 	type MyStruct struct {
-		EnumValue *MyEnum `validator:"enum(0,1)"`
+		EnumValue *MyEnum `validator:"required|enum(0,1)"`
 	}
 
 	opt := Opt2
 	myStruct := MyStruct{EnumValue: &opt}
 
-	res := validator.Validate(&myStruct)
-	fmt.Println(res)
+	res := Validate(&myStruct)
+	// fmt.Println(res)
 
-	assert.Equal(t, *myStruct.EnumValue, Opt2)
-	assert.True(t, res.IsValid(), "Validation failed")
+	assertEqual(t, *myStruct.EnumValue, Opt2)
+	assertTrue(t, res.IsValid(), "Validation failed")
 }
 
 func TestOptional(t *testing.T) {
@@ -177,10 +192,10 @@ func TestOptional(t *testing.T) {
 
 	myStruct := MyStruct{Optional: nil}
 
-	res := validator.Validate(&myStruct)
-	fmt.Println(res)
+	res := Validate(&myStruct)
+	// fmt.Println(res)
 
-	assert.True(t, res.IsValid(), "Validation failed")
+	assertTrue(t, res.IsValid(), "Validation failed")
 }
 
 func TestRequired(t *testing.T) {
@@ -191,13 +206,14 @@ func TestRequired(t *testing.T) {
 
 	myStruct := MyStruct{Optional: nil}
 
-	res := validator.Validate(&myStruct)
-	fmt.Println(res)
+	res := Validate(&myStruct)
+	// fmt.Println(res)
 
-	assert.False(t, res.IsValid(), "Validation failed")
+	assertFalse(t, res.IsValid(), "Validation failed")
 }
 
 func TestNested(t *testing.T) {
+
 	type struct2 struct {
 		Age int `validator:"min(18)" message:"must be at least 18 to open an account here"`
 	}
@@ -212,10 +228,10 @@ func TestNested(t *testing.T) {
 
 	myStruct := MyStruct{Bar: 15}
 
-	res := validator.Validate(&myStruct)
-	fmt.Println(res)
+	res := Validate(&myStruct)
+	// fmt.Println(res)
 
-	assert.False(t, res.IsValid(), "Validation failed")
+	assertFalse(t, res.IsValid(), "Validation failed")
 }
 
 func TestActivationTrigger(t *testing.T) {
@@ -226,7 +242,7 @@ func TestActivationTrigger(t *testing.T) {
 		Height int `filter:"add_five|add_five" trigger:"create,update"`
 	}
 
-	validator.AddFilter("add_five", func(ctx *validator.ValidationContext) reflect.Value {
+	AddFilter("add_five", func(ctx *ValidationContext) reflect.Value {
 		ctx.ValueMustBeOfKind(reflect.Int)
 
 		if !ctx.IsNull {
@@ -245,23 +261,23 @@ func TestActivationTrigger(t *testing.T) {
 	person := Person{Id: 0, Age: 2, Height: 1}
 
 	// create user
-	res := validator.Validate(&person, "create")
-	fmt.Println(res)
+	res := Validate(&person, "create")
+	// fmt.Println(res)
 
-	assert.Equal(t, person.Id, 0)
-	assert.Equal(t, person.Age, 7)
-	assert.Equal(t, person.Height, 11)
-	assert.True(t, res.IsValid(), "Validation failed")
+	assertEqual(t, person.Id, 0)
+	assertEqual(t, person.Age, 7)
+	assertEqual(t, person.Height, 11)
+	assertTrue(t, res.IsValid(), "Validation failed")
 
 	// assign id
 	person.Id = 999
 
 	// update user
-	res = validator.Validate(&person, "update")
-	fmt.Println(res)
+	res = Validate(&person, "update")
+	// fmt.Println(res)
 
-	assert.Equal(t, person.Id, 999)
-	assert.Equal(t, person.Age, 12)    //---\
-	assert.Equal(t, person.Height, 21) // ------>  opts.StopOnFirstError = false
-	assert.False(t, res.IsValid(), "Validation failed")
+	assertEqual(t, person.Id, 999)
+	assertEqual(t, person.Age, 12)    //---\
+	assertEqual(t, person.Height, 21) // ------>  opts.StopOnFirstError = false
+	assertFalse(t, res.IsValid(), "Validation failed")
 }
