@@ -14,6 +14,8 @@ import (
 
 func init() {
 	validator.SetupOptions(func(opts *validator.ValidationOptions) {
+		opts.ExposeEnumValues = true
+		opts.ExposeValidatorNames = true
 		opts.NoPanicOnFunctionConflict = true
 	})
 }
@@ -111,10 +113,6 @@ func TestPointer(t *testing.T) {
 
 	myStruct := MyStruct{Age: &age, Name: &name}
 
-	validator.SetupOptions(func(opts *validator.ValidationOptions) {
-		opts.ExposeValidatorNames = true
-	})
-
 	validator.AddFilter("upper", func(ctx *validator.ValidationContext) reflect.Value {
 		ctx.ValueMustBeOfKind(reflect.String)
 
@@ -147,5 +145,123 @@ func TestPointer(t *testing.T) {
 
 	assert.Equal(t, *myStruct.Name, "BAMES JOND")
 	assert.Equal(t, *myStruct.Age, 1764)
+	assert.False(t, res.IsValid(), "Validation failed")
+}
+
+func TestEnum(t *testing.T) {
+	type MyEnum int
+	const (
+		Opt1 MyEnum = iota
+		Opt2 MyEnum = iota
+	)
+
+	type MyStruct struct {
+		EnumValue *MyEnum `validator:"enum(0,1)"`
+	}
+
+	opt := Opt2
+	myStruct := MyStruct{EnumValue: &opt}
+
+	res := validator.Validate(&myStruct)
+	fmt.Println(res)
+
+	assert.Equal(t, *myStruct.EnumValue, Opt2)
+	assert.True(t, res.IsValid(), "Validation failed")
+}
+
+func TestOptional(t *testing.T) {
+
+	type MyStruct struct {
+		Optional *string `validator:"min(10)|max(20)"`
+	}
+
+	myStruct := MyStruct{Optional: nil}
+
+	res := validator.Validate(&myStruct)
+	fmt.Println(res)
+
+	assert.True(t, res.IsValid(), "Validation failed")
+}
+
+func TestRequired(t *testing.T) {
+
+	type MyStruct struct {
+		Optional *string `validator:"required|min(10)|max(20)"`
+	}
+
+	myStruct := MyStruct{Optional: nil}
+
+	res := validator.Validate(&myStruct)
+	fmt.Println(res)
+
+	assert.False(t, res.IsValid(), "Validation failed")
+}
+
+func TestNested(t *testing.T) {
+	type struct2 struct {
+		Age int `validator:"min(18)" message:"must be at least 18 to open an account here"`
+	}
+	type Struct1 struct {
+		struct2
+		Foo int `validator:"min(100)" label:"Deposit amount"`
+	}
+	type MyStruct struct {
+		Struct1
+		Bar int `validator:"min(10)|max(20)"`
+	}
+
+	myStruct := MyStruct{Bar: 15}
+
+	res := validator.Validate(&myStruct)
+	fmt.Println(res)
+
+	assert.False(t, res.IsValid(), "Validation failed")
+}
+
+func TestActivationTrigger(t *testing.T) {
+
+	type Person struct {
+		Id     int `validator:"min(1000)" message:"Employment ID numbers start at 1000" trigger:"update"`
+		Age    int `filter:"add_five"` // implicit 'all'
+		Height int `filter:"add_five|add_five" trigger:"create,update"`
+	}
+
+	validator.AddFilter("add_five", func(ctx *validator.ValidationContext) reflect.Value {
+		ctx.ValueMustBeOfKind(reflect.Int)
+
+		if !ctx.IsNull {
+			value := ctx.GetValue().Int()
+			value += 5
+			if ctx.IsPointer {
+				ctx.GetValue().Set(reflect.ValueOf(&value))
+			} else {
+				ctx.GetValue().SetInt(value)
+			}
+		}
+
+		return ctx.GetValue()
+	})
+
+	person := Person{Id: 0, Age: 2, Height: 1}
+
+	// create user
+	res := validator.Validate(&person, "create")
+	fmt.Println(res)
+
+	assert.Equal(t, person.Id, 0)
+	assert.Equal(t, person.Age, 7)
+	assert.Equal(t, person.Height, 11)
+	assert.True(t, res.IsValid(), "Validation failed")
+
+	// assign id
+	person.Id = 999
+
+	// update user
+	res = validator.Validate(&person, "update")
+	fmt.Println(res)
+
+	assert.Equal(t, person.Id, 999)
+	assert.Equal(t, person.Age, 12)    //---\
+	assert.Equal(t, person.Height, 21) // ------>  opts.StopOnFirstError = false
 	assert.False(t, res.IsValid(), "Validation failed")
 }

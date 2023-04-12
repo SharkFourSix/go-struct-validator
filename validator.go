@@ -6,36 +6,25 @@ import (
 )
 
 type ValidationOptions struct {
-	//
-	// PrivateFields Whether to validate private fields or not
-	//
-	PrivateFields bool
-	//
-	// UseFullyQualifiedFieldNames Whether to use nested fields fully qualified names
-	//
-	//   type Foo struct {
-	//	   FieldA int
-	//   }
-	//
-	//   type Bar struct {
-	//     Foo
-	//     FieldB int
-	//   }
-	//
-	//   foo := Foo{FieldA:3}
-	//   bar := Bar{Foo: foo, FieldB: 4}
-	//
-	// In the case above, by default bar.Foo.FieldA will resolve to bar.FieldA or simply 'FieldA'.
-	//
-	// If this option is set to true then the field will be reported as bar.Foo.FieldA.
-	//
-	// default: false
-	UseFullyQualifiedFieldNames bool
-
 	// FilterTagName specifies the tag to use when looking up filter functions
 	//
 	// default: 'filter'
 	FilterTagName string
+
+	// TriggerTagName specifies the tag to use when looking up activation triggers.
+	//
+	// Activation triggers allow evaluating fields selectively. The default activation trigger is 'all'.
+	//
+	// The following example shows a struct that will have the '.Age' field evaluated everytime the struct is validate
+	// and '.Id' only when updating.
+	//
+	//	type UserRequest struct {
+	//		Id  int `validator:"min(100)" trigger:"update"`
+	//		Age int `validator:"min(10)" trigger:"all"`
+	//	}
+	//
+	// default: 'trigger'
+	TriggerTagName string
 
 	// ValidatorTagName specifies the tag to use when looking up validation functions
 	//
@@ -76,6 +65,11 @@ type ValidationOptions struct {
 	//
 	// default: false
 	NoPanicOnFunctionConflict bool
+
+	// ExposeEnumValues specifies whether to list all enum values in the default error message.
+	//
+	// default: false
+	ExposeEnumValues bool
 }
 
 var cache *fieldCache
@@ -84,14 +78,16 @@ var globalOptions ValidationOptions
 func init() {
 	// default parameters
 	globalOptions = ValidationOptions{
-		PrivateFields:        true,
-		FilterTagName:        "filter",
-		ValidatorTagName:     "validator",
-		StringAutoTrim:       false,
-		MessageTagName:       "message",
-		LabelTagName:         "label",
-		StopOnFirstError:     false,
-		ExposeValidatorNames: false,
+		FilterTagName:             "filter",
+		ValidatorTagName:          "validator",
+		StringAutoTrim:            false,
+		MessageTagName:            "message",
+		LabelTagName:              "label",
+		StopOnFirstError:          false,
+		ExposeValidatorNames:      false,
+		NoPanicOnFunctionConflict: false,
+		ExposeEnumValues:          false,
+		TriggerTagName:            "trigger",
 	}
 	cache = &fieldCache{}
 }
@@ -200,7 +196,10 @@ func AddFilter(name string, v FilterFunction) {
 // # Parameters
 //
 // structPtr : Pointer to a struct
-func Validate(structPtr interface{}) (res *ValidationResult) {
+//
+// trigger   : Activation trigger - Specifies a unique value that will trigger activation of fields that have been taggeed with
+// the same value.
+func Validate(structPtr interface{}, trigger ...string) (res *ValidationResult) {
 
 	t := reflect.TypeOf(structPtr)
 	res = &ValidationResult{
@@ -217,8 +216,16 @@ func Validate(structPtr interface{}) (res *ValidationResult) {
 
 	// get from cache
 	fieldContexts := getStructFields(t, &globalOptions)
+	activationTrigger := "all"
+
+	if len(trigger) > 0 {
+		activationTrigger = trigger[0]
+	}
 
 	for _, fc := range fieldContexts {
+		if !fc.activate(activationTrigger) {
+			continue
+		}
 		errs := fc.apply(structValue, &globalOptions)
 		if len(errs) > 0 {
 			res.FieldErrors = append(res.FieldErrors, errs...)

@@ -6,14 +6,32 @@ import (
 )
 
 type ValidationContext struct {
-	value        reflect.Value
-	valueKind    reflect.Kind
-	ValueType    reflect.Type
-	IsPointer    bool
-	IsNull       bool
-	Options      *ValidationOptions
-	Args         []string
+	// The input value to be validated
+	value reflect.Value
+
+	// The resolved kind of the input value
+	valueKind reflect.Kind
+
+	// The resolved type of the input value
+	ValueType reflect.Type
+
+	// If the input value is a pointer
+	IsPointer bool
+
+	// If the input value is a pointer and the point is null
+	IsNull bool
+
+	// Validation options
+	Options *ValidationOptions
+
+	// Arguments passed to the validation or filter function
+	Args []string
+
+	// Containst the validation error message
 	ErrorMessage string
+
+	// An error that may have occurred during validation
+	AdditionalError error
 }
 
 // GetValue GetValue Returns the underlying value, resolving pointers if necessary
@@ -73,6 +91,6 @@ func (vc *ValidationContext) MustGetUintArg(position int) uint64 {
 	return intv
 }
 
-func (vc *ValidationContext) ValueIsOfType(t reflect.Type) bool {
-	return vc.ValueType.AssignableTo(t)
+func (vc *ValidationContext) IsValueOfType(i interface{}) bool {
+	return vc.ValueType.AssignableTo(reflect.TypeOf(i))
 }

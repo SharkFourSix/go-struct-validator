@@ -16,12 +16,20 @@ type fieldContext struct {
 	fieldMessageTemplate string
 	hasLabel             bool
 	hasMessagTemplate    bool
+	triggers             []string
+}
+
+func (fc *fieldContext) activate(trigger string) bool {
+	if !slices.Contains(fc.triggers, trigger) {
+		return slices.Contains(fc.triggers, "all")
+	}
+	return true
 }
 
 func (fc *fieldContext) apply(structValue reflect.Value, opts *ValidationOptions) []FieldError {
 	field := structValue.FieldByName(fc.fieldName)
 	value := field.Addr().Elem()
-	//value := field.Addr().Interface()
+
 	ispointer := value.Kind() == reflect.Ptr
 	var isnull bool = false
 
@@ -79,22 +87,17 @@ func (fc *fieldContext) apply(structValue reflect.Value, opts *ValidationOptions
 }
 
 func mustParseField(field reflect.StructField, opts *ValidationOptions) (ctx *fieldContext) {
-	// 1. Get validator tags
-	// 2. Get filter tags
-	// 3. Get message template tag
-	// 4. Get label template tag
-	// 5.
-
-	if field.Name[0] >= 'a' || field.Name[0] <= 'z' {
-		if !opts.PrivateFields {
-			return
-		}
+	// skip over unexported fields
+	if field.Name[0] >= 'a' && field.Name[0] <= 'z' {
+		return
 	}
 
 	filterTagValues, filters := field.Tag.Lookup(opts.FilterTagName)
+	triggerTagValues, hasTriggers := field.Tag.Lookup(opts.TriggerTagName)
 	validatorTagValues, validators := field.Tag.Lookup(opts.ValidatorTagName)
 	messageTemplate, hasMsgTemplate := field.Tag.Lookup(opts.MessageTagName)
 	label, hasLabel := field.Tag.Lookup(opts.LabelTagName)
+
 	if !filters && !validators {
 		return
 	}
@@ -107,11 +110,14 @@ func mustParseField(field reflect.StructField, opts *ValidationOptions) (ctx *fi
 		fieldKind:         field.Type.Kind(),
 	}
 
-	if len(field.PkgPath) == 0 {
-		fc.fieldName = field.Name
+	if hasTriggers {
+		triggers := strings.Split(triggerTagValues, ",")
+		fc.triggers = append(fc.triggers, triggers...)
 	} else {
-		fc.fieldName = field.PkgPath + "." + field.Name
+		fc.triggers = append(fc.triggers, "all")
 	}
+
+	fc.fieldName = field.Name
 
 	// resolve actual contained type
 	kinds := []reflect.Kind{reflect.Array, reflect.Map, reflect.Slice, reflect.Pointer}
@@ -123,11 +129,7 @@ func mustParseField(field reflect.StructField, opts *ValidationOptions) (ctx *fi
 	if hasLabel {
 		fc.fieldLabel = label
 	} else {
-		if opts.UseFullyQualifiedFieldNames {
-			fc.fieldLabel = fc.fieldName
-		} else {
-			fc.fieldLabel = field.Name
-		}
+		fc.fieldLabel = field.Name
 	}
 
 	if hasMsgTemplate {
