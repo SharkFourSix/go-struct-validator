@@ -278,3 +278,6 @@ https://pkg.go.dev/github.com/SharkFourSix/go-struct-validator#section-documenta
 ### Contribution
 
 Contributions are welcome
+
+
+Inspiration taken from https://github.com/gookit/validate
