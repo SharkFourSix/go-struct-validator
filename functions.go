@@ -243,9 +243,8 @@ func IsMin(ctx *ValidationContext) bool {
 
 	if ctx.IsValueOfKind(reflect.String) {
 		actual := len(ctx.GetValue().String())
-		match := int64(actual) >= expected
+		match = int64(actual) >= expected
 		propertyName = "length"
-		return match
 	} else if ctx.IsValueOfKind(reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64) {
 		actual := ctx.GetValue().Int()
 		match = actual >= expected
