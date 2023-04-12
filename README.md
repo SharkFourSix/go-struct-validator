@@ -279,7 +279,3 @@ Contributions are welcome
 
 
 Inspiration taken from https://github.com/gookit/validate
-
-### TODO
-
-- [ ] Add static analysis workflow file
