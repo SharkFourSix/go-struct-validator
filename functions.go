@@ -136,7 +136,7 @@ func IsNotToday(ctx *ValidationContext) bool {
 	return timeValidator(ctx, NOT_EQUAL)
 }
 
-// IsEmail IsEmail tests if the input value matches an email format.
+// IsEmail tests if the input value matches an email format.
 //
 // The validation rules used here do not conform to RFC and only allow only a few latin character set values.
 // Therefore this function could be considered as very strict.
@@ -179,7 +179,7 @@ func IsEmail(ctx *ValidationContext) bool {
 	return true
 }
 
-// IsEnum IsEnum tests if the input value matches any of the values passed in the arguments
+// IsEnum tests if the input value matches any of the values passed in the arguments
 func IsEnum(ctx *ValidationContext) bool {
 	if ctx.IsNull {
 		return true
@@ -213,7 +213,7 @@ func IsEnum(ctx *ValidationContext) bool {
 	return match
 }
 
-// IsMin IsMin tests if the given input (string, integer, list) contains at least the given number of elements
+// IsMin tests if the given input (string, integer, list) contains at least the given number of elements
 func IsMin(ctx *ValidationContext) bool {
 	ctx.ValueMustBeOfKind(
 		reflect.Int,
@@ -262,7 +262,7 @@ func IsMin(ctx *ValidationContext) bool {
 	return match
 }
 
-// IsMax IsMax tests if the given input (string, integer, list) contains at least the given number of elements
+// IsMax tests if the given input (string, integer, list) contains at least the given number of elements
 func IsMax(ctx *ValidationContext) bool {
 	ctx.ValueMustBeOfKind(
 		reflect.Int,
@@ -310,7 +310,7 @@ func IsMax(ctx *ValidationContext) bool {
 	return match
 }
 
-// IsAlphaNumeric IsAlphaNumeric verifies that the given string is alphanumeric
+// IsAlphaNumeric verifies that the given string is alphanumeric
 func IsAlphaNumeric(ctx *ValidationContext) bool {
 	ctx.ValueMustBeOfKind(reflect.String)
 
