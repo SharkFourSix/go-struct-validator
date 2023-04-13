@@ -184,6 +184,23 @@ func NewValueFilter(ctx *validator.ValidationContext) reflect.Value {
 }
 ```
 
+#### Validation flags
+
+Validation flags control the validation behavior per input value.
+
+```go
+type MyStruct struct {
+    Foo *string `validate:"min(5)|max(50)" flags:"allow_zero"`
+}
+
+myStruct := MyStruct {}
+result := validator.Validate(&myStruct)
+fmt.Println(result.IsValid()) // --> true
+
+```
+
+Refer to [Packaged Flags](#packaged-flags)
+
 #### Execution order and activation
 
 **Selective Validation**
@@ -271,6 +288,12 @@ func main(){
 | ---- | -------- | ---------- | ----------------- |
 | trim | Trim     |            | Trim string space |
 
+### Packaged flags
+
+| Name       | Description                                       |
+| ---------- | ------------------------------------------------- |
+| allow_zero | skips validation of values that match zero values |
+
 ### Validation options
 
 Refer to `validator.ValidationOptions` to see list of options in [validator.go](validator.go)
@@ -282,6 +305,5 @@ https://pkg.go.dev/github.com/SharkFourSix/go-struct-validator#section-documenta
 ### Contribution
 
 Contributions are welcome
-
 
 Inspiration taken from https://github.com/gookit/validate

@@ -17,6 +17,16 @@ type fieldContext struct {
 	hasLabel             bool
 	hasMessagTemplate    bool
 	triggers             []string
+	flags                []ValidationFlag
+	zeroValue            reflect.Value
+}
+
+func (fc *fieldContext) isFlagSet(flag ValidationFlag) bool {
+	return slices.Contains(fc.flags, flag)
+}
+
+func (fc *fieldContext) isZero(v reflect.Value) bool {
+	return fc.zeroValue.Equal(v)
 }
 
 func (fc *fieldContext) activate(trigger string) bool {
@@ -37,6 +47,16 @@ func (fc *fieldContext) apply(structValue reflect.Value, opts *ValidationOptions
 
 	if ispointer {
 		isnull = value.IsNil()
+	}
+
+	if fc.isFlagSet(AllowZero) {
+		if ispointer {
+			if value.IsZero() || fc.isZero(value.Elem()) {
+				return nil
+			}
+		} else if fc.isZero(value) {
+			return nil
+		}
 	}
 
 	for _, validator := range fc.validators {
@@ -92,6 +112,7 @@ func mustParseField(field reflect.StructField, opts *ValidationOptions) (ctx *fi
 		return
 	}
 
+	flagTagValues, hasFlags := field.Tag.Lookup(opts.FlagTagName)
 	filterTagValues, filters := field.Tag.Lookup(opts.FilterTagName)
 	triggerTagValues, hasTriggers := field.Tag.Lookup(opts.TriggerTagName)
 	validatorTagValues, validators := field.Tag.Lookup(opts.ValidatorTagName)
@@ -102,12 +123,21 @@ func mustParseField(field reflect.StructField, opts *ValidationOptions) (ctx *fi
 		return
 	}
 
+	var zeroValue reflect.Value
+
+	if field.Type.Kind() == reflect.Ptr {
+		zeroValue = reflect.Zero(field.Type.Elem())
+	} else {
+		zeroValue = reflect.Zero(field.Type)
+	}
+
 	fc := fieldContext{
 		validators:        make([]*fieldValueValidator, 0),
 		filters:           make([]*fieldValueFilter, 0),
 		hasLabel:          hasLabel,
 		hasMessagTemplate: hasMsgTemplate,
 		fieldKind:         field.Type.Kind(),
+		zeroValue:         zeroValue,
 	}
 
 	if hasTriggers {
@@ -168,6 +198,15 @@ func mustParseField(field reflect.StructField, opts *ValidationOptions) (ctx *fi
 				}
 
 				fc.filters = append(fc.filters, &fieldValueFilter{name: name, fn: v, args: args})
+			}
+		}
+	}
+
+	if hasFlags {
+		parts := strings.Split(flagTagValues, "|")
+		if len(parts) > 0 {
+			for _, flag := range parts {
+				fc.flags = append(fc.flags, ValidationFlag(strings.TrimSpace(flag)))
 			}
 		}
 	}

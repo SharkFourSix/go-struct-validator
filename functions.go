@@ -378,7 +378,8 @@ func IsUuid4(ctx *ValidationContext) bool {
 }
 
 var filterFunctions = map[string]FilterFunction{
-	"trim": Trim,
+	"trim":          Trim,
+	"null_if_empty": NullIfEmpty,
 }
 
 func Trim(ctx *ValidationContext) reflect.Value {
@@ -391,4 +392,22 @@ func Trim(ctx *ValidationContext) reflect.Value {
 	} else {
 		return reflect.ValueOf(strings.TrimSpace(ctx.GetValue().String()))
 	}
+}
+
+// NullIfEmpty Sets the given string pointer's value to null if the string is empty
+func NullIfEmpty(ctx *ValidationContext) reflect.Value {
+	ctx.ValueMustBeOfKind(reflect.String)
+
+	if !ctx.IsPointer {
+		panic(newValidationError("null_if_empty: filter only works with string pointers"))
+	}
+
+	if !ctx.IsNull {
+		value := ctx.GetValue().String()
+		if len(value) == 0 {
+			var nullString *string = nil
+			return reflect.ValueOf(nullString)
+		}
+	}
+	return ctx.GetValue()
 }

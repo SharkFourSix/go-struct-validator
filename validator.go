@@ -70,6 +70,11 @@ type ValidationOptions struct {
 	//
 	// default: false
 	ExposeEnumValues bool
+
+	// FlagTagName specifies the name of tag to use when looking up flags
+	//
+	// default: 'flags'
+	FlagTagName string
 }
 
 var cache *fieldCache
@@ -88,6 +93,7 @@ func init() {
 		NoPanicOnFunctionConflict: false,
 		ExposeEnumValues:          false,
 		TriggerTagName:            "trigger",
+		FlagTagName:               "flags",
 	}
 	cache = &fieldCache{}
 }

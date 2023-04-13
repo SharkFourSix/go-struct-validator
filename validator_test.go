@@ -5,7 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	//validator "github.com/SharkFourSix/go-struct-validator"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func init() {
@@ -17,22 +18,20 @@ func init() {
 	})
 }
 
+func assertNull(t *testing.T, value interface{}, msg ...string) {
+	assert.Nil(t, value, msg)
+}
+
 func assertFalse(t *testing.T, value bool, msg ...string) {
-	if value {
-		t.Fatal(msg)
-	}
+	assert.False(t, value, msg)
 }
 
 func assertTrue(t *testing.T, value bool, msg ...string) {
-	if !value {
-		t.Fatal(msg)
-	}
+	assert.True(t, value, msg)
 }
 
 func assertEqual(t *testing.T, expected, actual interface{}, msg ...string) {
-	if !reflect.DeepEqual(expected, actual) {
-		t.Fatal(msg)
-	}
+	assert.Equal(t, expected, actual, msg)
 }
 
 func TestValidator(t *testing.T) {
@@ -280,4 +279,31 @@ func TestActivationTrigger(t *testing.T) {
 	assertEqual(t, person.Age, 12)    //---\
 	assertEqual(t, person.Height, 21) // ------>  opts.StopOnFirstError = false
 	assertFalse(t, res.IsValid(), "Validation failed")
+}
+
+func TestNullIfEmpty(t *testing.T) {
+	type Form struct {
+		Username *string `validator:"alphanum" filter:"trim|null_if_empty"`
+	}
+	name := ""
+	form := Form{Username: &name}
+
+	r := Validate(&form)
+	assertTrue(t, r.IsValid(), "validation failed")
+	assertNull(t, form.Username)
+}
+
+func TestEmptyAsNull(t *testing.T) {
+	type Form struct {
+		FirstName *string `validator:"min(10)" flags:"allow_zero"`
+		LastName  *string `validator:"min(10)" flags:"allow_zero"`
+	}
+
+	name := ""
+	form := Form{LastName: &name}
+
+	r := Validate(&form)
+	assertTrue(t, r.IsValid(), "validation failed")
+	assertNull(t, form.FirstName, "Expected null")
+	assertEqual(t, *form.LastName, "", "Expected null")
 }
