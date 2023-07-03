@@ -390,6 +390,9 @@ func Trim(ctx *ValidationContext) reflect.Value {
 		trimmed := strings.TrimSpace(value)
 		return reflect.ValueOf(&trimmed)
 	} else {
+		if ctx.IsNull {
+			return ctx.value
+		}
 		return reflect.ValueOf(strings.TrimSpace(ctx.GetValue().String()))
 	}
 }
